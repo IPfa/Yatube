@@ -150,3 +150,16 @@ static/
 yatube/posts/static/
 yatube/media/
 
+# Static
+yatube/static
+yatube/posts/static
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Media
+yatube/media
