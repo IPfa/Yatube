@@ -101,7 +101,8 @@ def post_edit(request, username, post_id):
         context = {
             'form': form,
             'title_header': title_header,
-            'button': button
+            'button': button,
+            'post': post
         }
         return render(request, 'posts/new_post.html', context)
     else:
