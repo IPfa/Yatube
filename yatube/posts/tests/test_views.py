@@ -85,7 +85,6 @@ class PostsPagesTests(TestCase):
                 kwargs={'slug': self.GROUP_SLUG}
             )
         }
-            
         self.post_at = Post.objects.create(
             author=self.user,
             text=self.POST_TEXT,
