@@ -8,7 +8,7 @@ from .models import Comment, Follow, Group, Post, User
 
 
 def index(request):
-    post_list = Post.objects.all()
+    post_list = Post.objects.select_related('group').all()
     paginator = Paginator(post_list, settings.POSTS_PER_PAGE)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
@@ -27,15 +27,15 @@ def group_posts(request, slug):
 
 def profile(request, username):
     user = get_object_or_404(User, username=username)
-    followers = Follow.objects.filter(author=user)
-    following = Follow.objects.filter(user=user)
+    followers = User.objects.filter(following__author=user)
+    following = User.objects.filter(follower__user=user)
     posts = Post.objects.filter(author=user)
     paginator = Paginator(posts, settings.POSTS_PER_PAGE)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
     if request.user.is_authenticated:
         follow_bool = False
-        if Follow.objects.filter(user=request.user, author=user):
+        if Follow.objects.filter(user=request.user, author=user).exists():
             follow_bool = True
     else:
         follow_bool = False
@@ -53,7 +53,7 @@ def profile(request, username):
 def post_view(request, username, post_id):
     user = get_object_or_404(User, username=username)
     posts = Post.objects.filter(author=user)
-    post = Post.objects.get(author=user, pk=post_id)
+    post = get_object_or_404(Post, author=user, pk=post_id)
     comments = Comment.objects.filter(post=post_id)
     form = CommentForm()
     context = {
@@ -69,7 +69,7 @@ def post_view(request, username, post_id):
 @login_required
 def new_post(request):
     form = PostForm(request.POST or None, files=request.FILES or None)
-    if request.method == 'POST' and form.is_valid():
+    if form.is_valid():
         new_post = form.save(commit=False)
         new_post.author = request.user
         new_post.save()
@@ -86,18 +86,16 @@ def new_post(request):
 
 @login_required
 def post_edit(request, username, post_id):
-    post = Post.objects.get(pk=post_id)
+    post = get_object_or_404(Post, pk=post_id)
     title_header = 'Редактировать запись'
     button = 'Сохранить'
-    form = PostForm(request.POST or None, files=request.FILES or None)
-    if request.method == 'POST' and form.is_valid():
-        post.text = form.cleaned_data['text']
-        post.group = form.cleaned_data['group']
-        post.image = form.cleaned_data['image']
-        post.save()
+    form = PostForm(request.POST or None, files=request.FILES or None, instance=post)
+    if form.is_valid():
+        edited_post = form.save(commit=False)
+        edited_post.author = request.user
+        edited_post.save()
         return redirect('posts:post', username=username, post_id=post_id)
     if request.user == post.author:
-        form = PostForm(instance=post)
         context = {
             'form': form,
             'title_header': title_header,
@@ -112,14 +110,13 @@ def post_edit(request, username, post_id):
 @login_required
 def add_comment(request, post_id, username):
     post_add_comment = get_object_or_404(Post, pk=post_id)
-    user_who_adds_comment = User.objects.get(username=username)
+    user_who_adds_comment = get_object_or_404(User, username=username)
     form = CommentForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        Comment.objects.create(
-            post=post_add_comment,
-            author=user_who_adds_comment,
-            text=form.cleaned_data['text']
-        )
+    if form.is_valid():
+        new_comment = form.save(commit=False)
+        new_comment.post = post_add_comment
+        new_comment.author = user_who_adds_comment
+        new_comment.save()
         return redirect(
             'posts:post',
             username=post_add_comment.author,
@@ -134,12 +131,8 @@ def add_comment(request, post_id, username):
 
 @login_required
 def follow_index(request):
-    user_follows = Follow.objects.filter(user=request.user)
-    post_list = []
-    for model_object in user_follows:
-        following_posts = list(Post.objects.filter(author=model_object.author))
-        for post in following_posts:
-            post_list.append(post)
+    post_list = Post.objects.filter(author__following__user=request.user)
+    print(post_list)
     paginator = Paginator(post_list, settings.POSTS_PER_PAGE)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
@@ -150,20 +143,17 @@ def follow_index(request):
 @login_required
 def profile_follow(request, username):
     profile = get_object_or_404(User, username=username)
-    if Follow.objects.filter(user=request.user, author=profile):
-        return redirect('posts:profile', username=profile)
-    elif request.user == profile:
+    if request.user == profile:
         return redirect('posts:profile', username=profile)
     else:
-        Follow.objects.create(user=request.user, author=profile)
+        Follow.objects.get_or_create(user=request.user, author=profile)
         return redirect('posts:profile', username=profile)
 
 
 @login_required
 def profile_unfollow(request, username):
     profile = get_object_or_404(User, username=username)
-    follow_object = Follow.objects.get(user=request.user, author=profile)
-    follow_object.delete()
+    Follow.objects.filter(user=request.user, author=profile).delete()
     return redirect('posts:profile', username=profile)
 
 

@@ -1,3 +1,5 @@
+from http import HTTPStatus
+
 from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -24,7 +26,7 @@ class StaticURLTests(TestCase):
 
     def test_homepage(self):
         response = self.guest_client.get('/')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
 
 class PostsURLTests(TestCase):
@@ -50,7 +52,7 @@ class PostsURLTests(TestCase):
         )
         self.templates_url_names = {
             'posts/index.html': '/',
-            'posts/group.html': '/group/dubrovnik/',
+            'posts/group.html': f'/group/{self.group.slug}/',
             'posts/new_post.html': '/new/',
         }
         self.post = Post.objects.create(
@@ -59,21 +61,6 @@ class PostsURLTests(TestCase):
             group=self.group
         )
 
-    def test_home_url_exists_at_desired_location(self):
-        """Страница / доступна любому пользователю."""
-        response = self.guest_client.get('/')
-        self.assertEqual(response.status_code, 200)
-
-    def test_new_url_exists_at_desired_location_authorized(self):
-        """Страница /new/ доступна авторизованному пользователю."""
-        response = self.authorized_client.get('/new/')
-        self.assertEqual(response.status_code, 200)
-
-    def test_group_slug_url_exists_at_desired_location_authorized(self):
-        """Страница /group/slug/ доступна любому пользователю."""
-        response = self.guest_client.get('/group/dubrovnik/')
-        self.assertEqual(response.status_code, 200)
-
     def test_urls_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
         for template, adress in self.templates_url_names.items():
@@ -81,45 +68,26 @@ class PostsURLTests(TestCase):
                 response = self.authorized_client.get(adress)
                 self.assertTemplateUsed(response, template)
 
-    def test_profile_url_exists_at_desired_location_authorized(self):
-        """Страница /<username>/ доступна любому пользователю."""
-        response = self.guest_client.get('/split/')
-        self.assertEqual(response.status_code, 200)
-
-    def test_post_id_url_exists_at_desired_location_authorized(self):
-        """Страница /<username>/<post_id>/ доступна."""
-        """Любому пользователю."""
-        response = self.guest_client.get('/split/1/')
-        self.assertEqual(response.status_code, 200)
-
-    def test_post_edit_url_not_available_for_anonymus(self):
-        """Страница /<username>/<post_id>/edit/ не доступна."""
-        """Анонимному пользователю."""
-        response = self.guest_client.get('/split/1/edit/')
-        self.assertNotEqual(response.status_code, 200)
-        self.assertRedirects(
-            response,
-            reverse('login') + '?next=/split/1/edit/'
-        )
-
     def test_post_edit_url_not_available_for_not_post_author(self):
         """Страница /<username>/<post_id>/edit/ не доступна не автору поста."""
-        response = self.authorized_client2.get('/split/1/edit/')
-        self.assertNotEqual(response.status_code, 200)
+        response = self.authorized_client2.get(
+            f'/{self.post.author}/{self.post.pk}/edit/'
+        )
+        self.assertNotEqual(response.status_code, HTTPStatus.OK)
         self.assertRedirects(
             response,
-            reverse(POST_PAGE_NAME, kwargs={'username': 'split', 'post_id': 1})
+            reverse(
+                POST_PAGE_NAME,
+                kwargs={'username': self.post.author, 'post_id': self.post.pk}
+            )
         )
-
-    def test_post_edit_url_available_for_post_author(self):
-        """Страница /<username>/<post_id>/edit/ доступна автору поста."""
-        response = self.authorized_client.get('/split/1/edit/')
-        self.assertEqual(response.status_code, 200)
 
     def test_username_post_id_edit_url_uses_correct_template(self):
         """Страница /<username>/<post_id>/edit/ использует."""
         """Соответствующий шаблон."""
-        response = self.authorized_client.get('/split/1/edit/')
+        response = self.authorized_client.get(
+            f'/{self.post.author}/{self.post.pk}/edit/'
+        )
         self.assertTemplateUsed(response, 'posts/new_post.html')
 
     def test_permissions(self):
@@ -134,12 +102,12 @@ class PostsURLTests(TestCase):
             (
                 f'/{self.post.author}/{self.post.pk}/edit/',
                 self.authorized_client
-            )
+            ),
         )
         for adress, client in test_urls:
             with self.subTest(adress=adress):
                 response = client.get(adress)
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_redirects(self):
         """Проверка всех возможных редиректов для GET-запросов."""
@@ -191,7 +159,7 @@ class PostsURLTests(TestCase):
     def test_server_returns_404(self):
         """Сервер возвращает 404, если страница не найдена."""
         response = self.guest_client.get(PAGE_NOT_EXIST)
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_only_auth_user_could_add_comment(self):
         """Только авторизованный пользователь может комментировать записи."""

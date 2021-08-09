@@ -106,7 +106,7 @@ class PostCreateFormTests(TestCase):
         response = self.authorized_client.post(
             reverse(
                 self.edit_post_url,
-                kwargs={'username': self.USERNAME, 'post_id': 1}
+                kwargs={'username': self.USERNAME, 'post_id': self.post.pk}
             ),
             data={'text': self.POST_EDIT_TEXT_AFTER_EDIT},
             follow=True
@@ -115,7 +115,7 @@ class PostCreateFormTests(TestCase):
             response,
             reverse(
                 self.post_url,
-                kwargs={'username': self.USERNAME, 'post_id': 1}
+                kwargs={'username': self.USERNAME, 'post_id': self.post.pk}
             )
         )
         self.assertEqual(Post.objects.count(), posts_count)

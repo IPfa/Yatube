@@ -88,7 +88,8 @@ class PostsPagesTests(TestCase):
         self.post_at = Post.objects.create(
             author=self.user,
             text=self.POST_TEXT,
-            group=self.group
+            group=self.group,
+            image=self.uploaded_image
         )  # assignment test
         self.objs = []
         for self.post in range(0, 11):
@@ -100,6 +101,7 @@ class PostsPagesTests(TestCase):
                     image=self.uploaded_image
                 )
             )
+        self.follow = Follow.objects.create(user=self.user, author=self.user2)
         self.bulk = Post.objects.bulk_create(self.objs)
         self.post_edit_page_url = 'posts:edit_post'
         self.post_page_url = 'posts:post'
@@ -164,7 +166,7 @@ class PostsPagesTests(TestCase):
             response.context['page'].object_list[0].author,
             self.user
         )
-        self.assertEqual(response.context['group'].title, 'Дубровник')
+        self.assertEqual(response.context['group'].title, self.GROUP_TITLE)
         self.assertEqual(response.context['group'].description, '')
         self.assertTrue(
             response.context['page'].object_list[0].image
@@ -189,7 +191,7 @@ class PostsPagesTests(TestCase):
         response = self.authorized_client.get(
             reverse(
                 self.post_edit_page_url,
-                kwargs={'username': self.USERNAME, 'post_id': 1}
+                kwargs={'username': self.USERNAME, 'post_id': self.post_at.pk}
             )
         )
         self.assertIsInstance(
@@ -230,14 +232,14 @@ class PostsPagesTests(TestCase):
         response = self.authorized_client.get(
             reverse(
                 self.post_page_url,
-                kwargs={'username': self.USERNAME, 'post_id': 2}
+                kwargs={'username': self.USERNAME, 'post_id': self.post_at.pk}
             )
         )
         self.assertEqual(len(response.context['posts']), 12)
         self.assertEqual(response.context['profile_user'], self.user)
         self.assertEqual(
             response.context['post'].text,
-            'Hello World!'
+            self.POST_TEXT
         )
         self.assertEqual(
             response.context['post'].author,
@@ -293,20 +295,25 @@ class PostsPagesTests(TestCase):
             4
         )
 
-    def test_auth_user_could_subscribe_unsubcribe(self):
-        """Авторизованный пользователь может подписываться/отписываться"""
+    def test_auth_user_could_subscribe(self):
+        """Авторизованный пользователь может подписываться"""
         counter_before_subscription = Follow.objects.count()
-        self.authorized_client.get(
-            reverse(PROFILE_FOLLOW_PAGE_URL, args=[self.user2.username])
-        )  # subscribe
-        counter_after_subscribe = Follow.objects.count()
+        self.authorized_client2.get(
+            reverse(PROFILE_FOLLOW_PAGE_URL, args=[self.user3.username])
+        )  #  user 2 subscribes on user 3
+        counter_after_subscribtion = Follow.objects.count()
+        self.assertEqual(counter_before_subscription, 1)
+        self.assertEqual(counter_after_subscribtion, 2)
+
+    def test_auth_user_could_unsubcribe(self):
+        """Авторизованный пользователь может отписываться"""
+        counter_before_unsubscription = Follow.objects.count()
         self.authorized_client.get(
             reverse(PROFILE_UNFOLLOW_PAGE, args=[self.user2.username])
-        )  # unsubscribe
-        counter_after_unsubscribe = Follow.objects.count()
-        self.assertEqual(counter_before_subscription, 0)
-        self.assertEqual(counter_after_subscribe, 1)
-        self.assertEqual(counter_after_unsubscribe, 0)
+        )  # user 1 unsubscribes form user 2
+        counter_after_unsubscription = Follow.objects.count()
+        self.assertEqual(counter_before_unsubscription, 1)
+        self.assertEqual(counter_after_unsubscription, 0)
 
     def test_new_post_occurs_by_subscribers(self):
         """Новая запись пользователя появляется."""
