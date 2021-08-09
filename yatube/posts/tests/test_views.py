@@ -300,7 +300,7 @@ class PostsPagesTests(TestCase):
         counter_before_subscription = Follow.objects.count()
         self.authorized_client2.get(
             reverse(PROFILE_FOLLOW_PAGE_URL, args=[self.user3.username])
-        )  #  user 2 subscribes on user 3
+        )  # user 2 subscribes on user 3
         counter_after_subscribtion = Follow.objects.count()
         self.assertEqual(counter_before_subscription, 1)
         self.assertEqual(counter_after_subscribtion, 2)

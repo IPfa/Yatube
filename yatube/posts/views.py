@@ -89,7 +89,11 @@ def post_edit(request, username, post_id):
     post = get_object_or_404(Post, pk=post_id)
     title_header = 'Редактировать запись'
     button = 'Сохранить'
-    form = PostForm(request.POST or None, files=request.FILES or None, instance=post)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,
+        instance=post
+    )
     if form.is_valid():
         edited_post = form.save(commit=False)
         edited_post.author = request.user
