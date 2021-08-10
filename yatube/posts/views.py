@@ -95,9 +95,7 @@ def post_edit(request, username, post_id):
         instance=post
     )
     if form.is_valid():
-        edited_post = form.save(commit=False)
-        edited_post.author = request.user
-        edited_post.save()
+        form.save()
         return redirect('posts:post', username=username, post_id=post_id)
     if request.user == post.author:
         context = {
@@ -136,7 +134,6 @@ def add_comment(request, post_id, username):
 @login_required
 def follow_index(request):
     post_list = Post.objects.filter(author__following__user=request.user)
-    print(post_list)
     paginator = Paginator(post_list, settings.POSTS_PER_PAGE)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
@@ -146,12 +143,10 @@ def follow_index(request):
 
 @login_required
 def profile_follow(request, username):
-    profile = get_object_or_404(User, username=username)
-    if request.user == profile:
-        return redirect('posts:profile', username=profile)
-    else:
+    if request.user.username != username:
+        profile = get_object_or_404(User, username=username)
         Follow.objects.get_or_create(user=request.user, author=profile)
-        return redirect('posts:profile', username=profile)
+    return redirect('posts:profile', username=username)
 
 
 @login_required
