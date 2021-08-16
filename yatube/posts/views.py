@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -8,7 +9,10 @@ from .models import Comment, Follow, Group, Post, User
 
 
 def index(request):
-    post_list = Post.objects.select_related('group').all()
+    post_list = cache.get('index_page')
+    if post_list is None:
+        post_list = Post.objects.select_related('group').all()
+        cache.set('index_page', post_list, timeout=20)
     paginator = Paginator(post_list, settings.POSTS_PER_PAGE)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
@@ -52,16 +56,27 @@ def profile(request, username):
 
 def post_view(request, username, post_id):
     user = get_object_or_404(User, username=username)
+    followers = User.objects.filter(following__author=user)
+    following = User.objects.filter(follower__user=user)
     posts = Post.objects.filter(author=user)
     post = get_object_or_404(Post, author=user, pk=post_id)
     comments = Comment.objects.filter(post=post_id)
     form = CommentForm()
+    if request.user.is_authenticated:
+        follow_bool = False
+        if Follow.objects.filter(user=request.user, author=user).exists():
+            follow_bool = True
+    else:
+        follow_bool = False
     context = {
         'profile_user': user,
         'posts': posts,
         'post': post,
         'form': form,
-        'comments': comments
+        'comments': comments,
+        'followers': followers,
+        'following': following,
+        'follow_bool': follow_bool,
     }
     return render(request, 'posts/post.html', context)
 

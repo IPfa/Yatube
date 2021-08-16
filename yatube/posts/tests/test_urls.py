@@ -25,6 +25,7 @@ class StaticURLTests(TestCase):
         self.guest_client = Client()
 
     def test_homepage(self):
+        cache.clear()
         response = self.guest_client.get('/')
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
