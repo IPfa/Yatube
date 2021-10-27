@@ -277,22 +277,28 @@ class PostsPagesTests(TestCase):
 
     def test_cache(self):
         """Тестирование кеша"""
-        response_home_page_2 = self.authorized_client.get(
+        cache.clear()  # почистили кеш
+        Post.objects.create(
+            author=self.user,
+            text=self.CACHE_TEST_POST
+        )  # создали пост
+        response_home_page_2_one = self.authorized_client.get(
             reverse(HOME_PAGE_URL) + '?page=2'
-        )
-        Post.objects.create(author=self.user, text=self.CACHE_TEST_POST)
-        Post.objects.create(author=self.user, text=self.CACHE_TEST_POST)
-        self.assertEqual(
-            len(response_home_page_2.context['page'].object_list),
-            2
-        )
-        cache.clear()
-        response_home_page_2_after = self.authorized_client.get(
+        )  # проверили что пост появился (12 + 1 = 13)
+        Post.objects.create(
+            author=self.user,
+            text=self.CACHE_TEST_POST
+        )  # создали еще один пост
+        response_home_page_2_two = self.authorized_client.get(
             reverse(HOME_PAGE_URL) + '?page=2'
+        )  # проверили что пост не появился (12 + 1 = 13)
+        self.assertEqual(
+            len(response_home_page_2_one.context['page'].object_list),
+            3
         )
         self.assertEqual(
-            len(response_home_page_2_after.context['page'].object_list),
-            4
+            len(response_home_page_2_two.context['page'].object_list),
+            3
         )
 
     def test_auth_user_could_subscribe(self):
