@@ -31,6 +31,7 @@ python3 manage.py runserver
 ```
 **Project is available on:**
 http://127.0.0.1:8000/
+**Admin Zone:**
 http://127.0.0.1:8000/admin/
 
 # Авторы
